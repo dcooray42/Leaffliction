@@ -11,14 +11,27 @@ def count_files_folder(path):
     for path_file in os.listdir(path):
         complete_path = os.path.join(path, path_file)
         if os.path.isdir(complete_path):
-            folder_data.append(count_files_folder(complete_path))
+            sub_folder = count_files_folder(complete_path)
+            if isinstance(sub_folder, list):
+                for data in sub_folder:
+                    folder_data.append(data)
+            else:
+                folder_data.append(count_files_folder(complete_path))
         else:
             try:
                 Image.open(complete_path)
                 count += 1
             except Exception:
                 continue
-    return folder_data if len(folder_data) else FolderData(path, count)
+    len_data = len(folder_data)
+    if len_data and count == 0:
+        return folder_data
+    elif len_data and count:
+        return [FolderData(path, count), folder_data]
+    elif len_data == 0 and count:
+        return FolderData(path, count)
+    else:
+        return
 
 
 def distribution(path):
