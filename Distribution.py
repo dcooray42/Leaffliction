@@ -46,18 +46,18 @@ def numpy_data(data, path):
 def distribution(path):
 
     def subplots(subfig, x, y):
-            folder_name = (x[0].split("/")[-2]
-                           if x[0].split("/")[-2] != ""
-                           else "parent directory")
-            subfig.suptitle(
-                f"Distribution of the images in the folder {folder_name}"
-            )
-            axs = subfig.subplots(1, 2)
-            labels = [_.split("/")[-1] for _ in x]
-            axs[0].pie(y, labels=labels, autopct="%1.2f%%")
-            bar_container = axs[1].bar(labels, y)
-            axs[1].bar_label(bar_container, fmt='{:,.0f}')
-            axs[1].tick_params(labelrotation=30)
+        folder_name = (x[0].split("/")[-2]
+                       if x[0].split("/")[-2] != ""
+                       else "parent directory")
+        subfig.suptitle(
+            f"Distribution of the images in the folder {folder_name}"
+        )
+        axs = subfig.subplots(1, 2)
+        labels = [_.split("/")[-1] for _ in x]
+        axs[0].pie(y, labels=labels, autopct="%1.2f%%")
+        bar_container = axs[1].bar(labels, y)
+        axs[1].bar_label(bar_container, fmt='{:,.0f}')
+        axs[1].tick_params(labelrotation=30)
 
     data = FolderData(path)
     count_files_folder(data)
