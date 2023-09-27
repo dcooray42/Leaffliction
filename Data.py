@@ -12,7 +12,7 @@ class FolderData:
 
     def get_path(self) -> str:
         return self.__path
-    
+
     def get_count(self) -> int:
         return self.__count
 
