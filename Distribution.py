@@ -82,12 +82,12 @@ def main():
                         type=str,
                         help="Path of the folder to analyze")
     args = parser.parse_args()
-#    try:
-    args = vars(args)
-    distribution(**args)
-#    except Exception as e:
-##        print(str(e))
-#        parser.print_help()
+    try:
+        args = vars(args)
+        distribution(**args)
+    except Exception as e:
+        print(str(e))
+        parser.print_help()
 
 
 if __name__ == "__main__":
