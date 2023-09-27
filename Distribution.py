@@ -44,26 +44,35 @@ def numpy_data(data, path):
 
 
 def distribution(path):
+
+    def subplots(subfig, x, y):
+            folder_name = (x[0].split("/")[-2]
+                           if x[0].split("/")[-2] != ""
+                           else "parent directory")
+            subfig.suptitle(
+                f"Distribution of the images in the folder {folder_name}"
+            )
+            axs = subfig.subplots(1, 2)
+            labels = [_.split("/")[-1] for _ in x]
+            axs[0].pie(y, labels=labels, autopct="%1.2f%%")
+            bar_container = axs[1].bar(labels, y)
+            axs[1].bar_label(bar_container, fmt='{:,.0f}')
+            axs[1].tick_params(labelrotation=30)
+
     data = FolderData(path)
     count_files_folder(data)
     graph_data = numpy_data(data, path)
     fig = plt.figure(constrained_layout=True)
     fig.suptitle("Global distribution of the images")
-    subfigs = fig.subfigures(len(graph_data), 1)
-    for row, subfig in enumerate(subfigs):
-        x, y = graph_data[row]
-        folder_name = (x[0].split("/")[-2]
-                       if x[0].split("/")[-2] != ""
-                       else "parent directory")
-        subfig.suptitle(
-            f"Distribution of the images in the folder {folder_name}"
-        )
-        axs = subfig.subplots(1, 2)
-        labels = [_.split("/")[-1] for _ in x]
-        axs[0].pie(y, labels=labels, autopct="%1.2f%%")
-        bar_container = axs[1].bar(labels, y)
-        axs[1].bar_label(bar_container, fmt='{:,.0f}')
-        axs[1].tick_params(labelrotation=30)
+    data_len = len(graph_data)
+    subfigs = fig.subfigures(data_len, 1)
+    if data_len == 1:
+        x, y = graph_data[0]
+        subplots(subfigs, x, y)
+    else:
+        for row, subfig in enumerate(subfigs):
+            x, y = graph_data[row]
+            subplots(subfig, x, y)
     plt.show()
 
 
@@ -73,12 +82,12 @@ def main():
                         type=str,
                         help="Path of the folder to analyze")
     args = parser.parse_args()
-    try:
-        args = vars(args)
-        distribution(**args)
-    except Exception as e:
-        print(str(e))
-        parser.print_help()
+#    try:
+    args = vars(args)
+    distribution(**args)
+#    except Exception as e:
+##        print(str(e))
+#        parser.print_help()
 
 
 if __name__ == "__main__":
