@@ -3,6 +3,7 @@ from Distribution import count_files_folder
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+from pathlib import Path
 from PIL import Image, ImageFilter, ImageEnhance
 
 
@@ -17,25 +18,42 @@ image_labels = [
 ]
 
 
-def return_image(img):
-    return np.array(img.convert("RGB"))
+def return_image(img, img_name, dest, img_aug=""):
+    save_img = img.convert("RGB")
+    img_name = (img_name
+                if img_aug == ""
+                else ("_" + img_aug + ".").join(img_name.split(".")))
+    print("/".join([dest + img_name]))
+    save_img.save("/".join([dest, img_name]))
+    return np.array(save_img)
 
 
-def rotate_image(img):
-    return np.array(return_image(img.rotate(-10, expand=True)))
-
-
-def blur_image(img):
+def rotate_image(img, img_name, dest):
     return np.array(return_image(
-        img.filter(ImageFilter.GaussianBlur(2))))
+        img.rotate(-10, expand=True),
+        img_name,
+        dest,
+        "Rotate"))
 
 
-def contrast_image(img):
+def blur_image(img, img_name, dest):
+    return np.array(return_image(
+        img.filter(ImageFilter.GaussianBlur(2)),
+        img_name,
+        dest,
+        "Blur"))
+
+
+def contrast_image(img, img_name, dest):
     contrast_img = ImageEnhance.Contrast(img)
-    return np.array(return_image(contrast_img.enhance(2)))
+    return np.array(return_image(
+        contrast_img.enhance(2),
+        img_name,
+        dest,
+        "Contrast"))
 
 
-def zoom_image(img):
+def zoom_image(img, img_name, dest):
     width, height = img.size
     zoom = 10.0
     new_border_x = (width * zoom) / 100
@@ -45,15 +63,22 @@ def zoom_image(img):
                          width - new_border_x,
                          height - new_border_y))
     return np.array(return_image(
-        zoom_img.resize((width, height))))
+        zoom_img.resize((width, height)),
+        img_name,
+        dest,
+        "Scaling"))
 
 
-def brightness_image(img):
+def brightness_image(img, img_name, dest):
     bright_img = ImageEnhance.Brightness(img)
-    return np.array(return_image(bright_img.enhance(1.5)))
+    return np.array(return_image(
+        bright_img.enhance(1.5),
+        img_name,
+        dest,
+        "Illumination"))
 
 
-def projective_image(img):
+def projective_image(img, img_name, dest):
 
     def find_coeffs(pa, pb):
         matrix = []
@@ -88,28 +113,40 @@ def projective_image(img):
                                    Image.PERSPECTIVE,
                                    coeffs,
                                    Image.BICUBIC)
-    return np.array(return_image(projective_img))
+    return np.array(return_image(
+        projective_img,
+        img_name,
+        dest,
+        "Projective"))
 
 
-def augmentation(path):
+def augmentation(path, dest):
     try:
+        dest_folder = Path(dest)
+        dest_folder.mkdir(parents=True, exist_ok=False)
+    except FileExistsError:
+        pass
+    except Exception as e:
+        raise e
+    try:
+        img_name = path.split("/")[-1]
         img = Image.open(path)
         images = []
-        images.append(return_image(img))
-        images.append(rotate_image(img))
-        images.append(blur_image(img))
-        images.append(contrast_image(img))
-        images.append(zoom_image(img))
-        images.append(brightness_image(img))
-        images.append(projective_image(img))
+        images.append(return_image(img, img_name, dest))
+        images.append(rotate_image(img, img_name, dest))
+        images.append(blur_image(img, img_name, dest))
+        images.append(contrast_image(img, img_name, dest))
+        images.append(zoom_image(img, img_name, dest))
+        images.append(brightness_image(img, img_name, dest))
+        images.append(projective_image(img, img_name, dest))
     except Exception as e:
         raise e
     return images
 
 
-def show_augmentation(path):
+def show_augmentation(path, dest):
     try:
-        images = augmentation(path)
+        images = augmentation(path, dest)
         fig = plt.figure(constrained_layout=True)
         fig.suptitle(f"Augmentation images of {path}")
         ax = fig.subplots(1, len(images))
@@ -126,7 +163,10 @@ def main():
     parser = ArgumentParser()
     parser.add_argument("path",
                         type=str,
-                        help="Path of the folder to analyze")
+                        help="Path of the folder to analyze or file")
+    parser.add_argument("dest",
+                        type=str,
+                        help="Path of the folder where to save the images")
     args = parser.parse_args()
 #    try:
     args = vars(args)
