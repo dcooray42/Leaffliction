@@ -1,4 +1,5 @@
 from argparse import ArgumentParser
+from Data import FolderData
 from Distribution import count_files_folder
 import matplotlib.pyplot as plt
 import numpy as np
@@ -157,6 +158,35 @@ def show_augmentation(path, dest):
         plt.show()
     except Exception as e:
         raise e
+    
+
+def get_max_image(path):
+
+    def get_max_image_sub_dir(dir, max_num):
+        for sub_dir in dir.get_sub_dir():
+            print(sub_dir)
+            img_num = sub_dir.get_count()
+            if img_num > max_num:
+                max_num = img_num
+        return max_num
+
+    max_num = 0
+    data = FolderData(path)
+    count_files_folder(data)
+    sub_dir = data.get_sub_dir()
+    for dir in sub_dir:
+        dir_path = dir.get_path()
+        print(dir_path)
+        if (not dir_path.endswith("/Apple") 
+            and not dir_path.endswith("/Grape")):
+            raise Exception("Can't balance the images in this folder")
+        else:
+            max_num = get_max_image_sub_dir(dir, max_num)
+    print(max_num)
+
+
+def balance_augmentation(path, dest):
+    max_img = get_max_image(path)
 
 
 def main():
@@ -170,7 +200,10 @@ def main():
     args = parser.parse_args()
 #    try:
     args = vars(args)
-    show_augmentation(**args)
+    if os.path.isfile(args["path"]):
+        show_augmentation(**args)
+    else:
+        balance_augmentation(**args)
 #    except Exception as e:
 #        print(str(e))
 #        parser.print_help()
