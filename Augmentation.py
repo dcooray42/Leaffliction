@@ -54,12 +54,14 @@ def brightness_image(img):
 
 
 def projective_image(img):
-    
+
     def find_coeffs(pa, pb):
         matrix = []
         for p1, p2 in zip(pa, pb):
-            matrix.append([p1[0], p1[1], 1, 0, 0, 0, -p2[0]*p1[0], -p2[0]*p1[1]])
-            matrix.append([0, 0, 0, p1[0], p1[1], 1, -p2[1]*p1[0], -p2[1]*p1[1]])
+            matrix.append([p1[0], p1[1], 1, 0, 0, 0,
+                           -p2[0]*p1[0], -p2[0]*p1[1]])
+            matrix.append([0, 0, 0, p1[0], p1[1], 1,
+                           -p2[1]*p1[0], -p2[1]*p1[1]])
         A = np.matrix(matrix, dtype=float)
         B = np.array(pb).reshape(8)
         res = np.dot(np.linalg.inv(A.T * A) * A.T, B)
@@ -76,15 +78,12 @@ def projective_image(img):
         (0, height)
     ]
     dest_points = [
-        (0, new_border_y),
-        (width - new_border_x, 0),
-        (width - (new_border_x / 2), height - new_border_y),
+        (new_border_x / 2, new_border_y),
+        (width - new_border_x, new_border_y / 2),
+        (width - (new_border_x * 2), height - (new_border_y * 2)),
         (new_border_x, height)
     ]
-
-    coeffs = find_coeffs(src_points, dest_points)
-    print(dest_points)
-    print(coeffs)
+    coeffs = find_coeffs(dest_points, src_points)
     projective_img = img.transform((width, height),
                                    Image.PERSPECTIVE,
                                    coeffs,
