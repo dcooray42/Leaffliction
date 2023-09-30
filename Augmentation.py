@@ -20,6 +20,7 @@ image_labels = [
 
 
 def return_image(img, img_name, dest, img_aug=""):
+    underscore_occur = 2
     save_img = img.convert("RGB")
     img_name = (img_name
                 if img_aug == ""
@@ -121,7 +122,14 @@ def projective_image(img, img_name, dest):
         "Projective"))
 
 
-def augmentation(path, dest):
+def apply_augmentation(func, images, img, img_name, dest, iter):
+    if iter > 0:
+        images.append(func(img, img_name, dest))
+    iter -= 1
+    return iter
+
+
+def augmentation(path, dest, iter):
     try:
         dest_folder = Path(dest)
         dest_folder.mkdir(parents=True, exist_ok=False)
@@ -133,13 +141,20 @@ def augmentation(path, dest):
         img_name = path.split("/")[-1]
         img = Image.open(path)
         images = []
-        images.append(return_image(img, img_name, dest))
-        images.append(rotate_image(img, img_name, dest))
-        images.append(blur_image(img, img_name, dest))
-        images.append(contrast_image(img, img_name, dest))
-        images.append(zoom_image(img, img_name, dest))
-        images.append(brightness_image(img, img_name, dest))
-        images.append(projective_image(img, img_name, dest))
+        iter = apply_augmentation(return_image,
+                                  images, img, img_name, dest, iter)
+        iter = apply_augmentation(rotate_image,
+                                  images, img, img_name, dest, iter)
+        iter = apply_augmentation(blur_image,
+                                  images, img, img_name, dest, iter)
+        iter = apply_augmentation(contrast_image,
+                                  images, img, img_name, dest, iter)
+        iter = apply_augmentation(zoom_image,
+                                  images, img, img_name, dest, iter)
+        iter = apply_augmentation(brightness_image,
+                                  images, img, img_name, dest, iter)
+        iter = apply_augmentation(projective_image,
+                                  images, img, img_name, dest, iter)
     except Exception as e:
         raise e
     return images
@@ -147,7 +162,7 @@ def augmentation(path, dest):
 
 def show_augmentation(path, dest):
     try:
-        images = augmentation(path, dest)
+        images = augmentation(path, dest, 5)
         fig = plt.figure(constrained_layout=True)
         fig.suptitle(f"Augmentation images of {path}")
         ax = fig.subplots(1, len(images))
@@ -158,7 +173,7 @@ def show_augmentation(path, dest):
         plt.show()
     except Exception as e:
         raise e
-    
+
 
 def get_max_image(path):
 
@@ -177,16 +192,25 @@ def get_max_image(path):
     for dir in sub_dir:
         dir_path = dir.get_path()
         print(dir_path)
-        if (not dir_path.endswith("/Apple") 
-            and not dir_path.endswith("/Grape")):
+        if ("/Apple" not in dir_path
+           and "/Grape" not in dir_path):
             raise Exception("Can't balance the images in this folder")
         else:
-            max_num = get_max_image_sub_dir(dir, max_num)
-    print(max_num)
+            if (path.endswith("Apple")
+               or path.endswith("Grape")):
+                max_num = get_max_image_sub_dir(data, max_num)
+                break
+            else:
+                max_num = get_max_image_sub_dir(dir, max_num)
+    return max_num
 
 
 def balance_augmentation(path, dest):
-    max_img = get_max_image(path)
+    try:
+        max_img = get_max_image(path)
+    except Exception as e:
+        raise e
+    print(max_img)
 
 
 def main():
