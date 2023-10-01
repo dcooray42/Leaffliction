@@ -84,6 +84,7 @@ def main():
     args = parser.parse_args()
     try:
         args = vars(args)
+        args["path"] = args["path"].rstrip("/")
         distribution(**args)
     except Exception as e:
         print(str(e))

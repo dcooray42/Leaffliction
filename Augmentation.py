@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 from Data import FolderData
 from Distribution import count_files_folder
+import glob
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -20,12 +21,10 @@ image_labels = [
 
 
 def return_image(img, img_name, dest, img_aug=""):
-    underscore_occur = 2
     save_img = img.convert("RGB")
     img_name = (img_name
                 if img_aug == ""
                 else ("_" + img_aug + ".").join(img_name.split(".")))
-    print("/".join([dest + img_name]))
     save_img.save("/".join([dest, img_name]))
     return np.array(save_img)
 
@@ -129,7 +128,7 @@ def apply_augmentation(func, images, img, img_name, dest, iter):
     return iter
 
 
-def augmentation(path, dest, iter):
+def augmentation(path, dest, iter, print_ori=True):
     try:
         dest_folder = Path(dest)
         dest_folder.mkdir(parents=True, exist_ok=False)
@@ -141,8 +140,9 @@ def augmentation(path, dest, iter):
         img_name = path.split("/")[-1]
         img = Image.open(path)
         images = []
-        iter = apply_augmentation(return_image,
-                                  images, img, img_name, dest, iter)
+        if print_ori:
+            iter = apply_augmentation(return_image,
+                                      images, img, img_name, dest, iter)
         iter = apply_augmentation(rotate_image,
                                   images, img, img_name, dest, iter)
         iter = apply_augmentation(blur_image,
@@ -157,12 +157,29 @@ def augmentation(path, dest, iter):
                                   images, img, img_name, dest, iter)
     except Exception as e:
         raise e
-    return images
+    return images, iter
+
+
+def copy_original_image(path, dest, iter):
+    try:
+        dest_folder = Path(dest)
+        dest_folder.mkdir(parents=True, exist_ok=False)
+    except FileExistsError:
+        pass
+    except Exception as e:
+        raise e
+    try:
+        img_name = path.split("/")[-1]
+        img = Image.open(path)
+        return_image(img, img_name, dest)
+    except Exception as e:
+        raise e
+    return iter - 1
 
 
 def show_augmentation(path, dest):
     try:
-        images = augmentation(path, dest, 5)
+        images = augmentation(path, dest, 7)[0]
         fig = plt.figure(constrained_layout=True)
         fig.suptitle(f"Augmentation images of {path}")
         ax = fig.subplots(1, len(images))
@@ -175,23 +192,46 @@ def show_augmentation(path, dest):
         raise e
 
 
-def get_max_image(path):
+def balance_image_folder(dir, dest, depth_folder, max_num):
+    for sub_dir in dir.get_sub_dir():
+        tmp_num = max_num
+        loop = True
+        transformed_dest = dest + "/" + "/".join(
+            sub_dir.get_path().split("/")[-depth_folder:])
+        for path_file in glob.glob(sub_dir.get_path() + "/*.JPG"):
+            if tmp_num > 0:
+                tmp_num = copy_original_image(path_file,
+                                              transformed_dest,
+                                              tmp_num)
+            else:
+                loop = False
+                break
+        while loop:
+            for path_file in glob.glob(sub_dir.get_path() + "/*.JPG"):
+                if tmp_num > 0:
+                    tmp_num = augmentation(path_file,
+                                           transformed_dest,
+                                           tmp_num,
+                                           False)[1]
+                else:
+                    loop = False
+                    break
+
+
+def get_max_image(data, path):
 
     def get_max_image_sub_dir(dir, max_num):
         for sub_dir in dir.get_sub_dir():
-            print(sub_dir)
             img_num = sub_dir.get_count()
             if img_num > max_num:
                 max_num = img_num
         return max_num
 
     max_num = 0
-    data = FolderData(path)
     count_files_folder(data)
     sub_dir = data.get_sub_dir()
     for dir in sub_dir:
         dir_path = dir.get_path()
-        print(dir_path)
         if ("/Apple" not in dir_path
            and "/Grape" not in dir_path):
             raise Exception("Can't balance the images in this folder")
@@ -207,10 +247,22 @@ def get_max_image(path):
 
 def balance_augmentation(path, dest):
     try:
-        max_img = get_max_image(path)
+        multiple_sub_dir = True
+        data = FolderData(path)
+        max_img = get_max_image(data, path)
+        sub_dir = data.get_sub_dir()
+        for dir in sub_dir:
+            dir_path = dir.get_path()
+            if (not dir_path.endswith("Apple")
+               and not dir_path.endswith("Grape")):
+                multiple_sub_dir = False
+        if multiple_sub_dir:
+            for dir in sub_dir:
+                balance_image_folder(dir, dest, 2, max_img)
+        else:
+            balance_image_folder(data, dest, 1, max_img)
     except Exception as e:
         raise e
-    print(max_img)
 
 
 def main():
@@ -222,15 +274,17 @@ def main():
                         type=str,
                         help="Path of the folder where to save the images")
     args = parser.parse_args()
-#    try:
-    args = vars(args)
-    if os.path.isfile(args["path"]):
-        show_augmentation(**args)
-    else:
-        balance_augmentation(**args)
-#    except Exception as e:
-#        print(str(e))
-#        parser.print_help()
+    try:
+        args = vars(args)
+        args["path"] = args["path"].rstrip("/")
+        args["dest"] = args["dest"].rstrip("/")
+        if os.path.isfile(args["path"]):
+            show_augmentation(**args)
+        else:
+            balance_augmentation(**args)
+    except Exception as e:
+        print(str(e))
+        parser.print_help()
 
 
 if __name__ == "__main__":
