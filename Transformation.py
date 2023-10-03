@@ -6,6 +6,7 @@ import numpy as np
 import os
 from pathlib import Path
 from plantcv import plantcv as pcv
+from PIL import Image
 
 
 image_labels = [
@@ -23,10 +24,10 @@ def return_image(img, img_name, dest, img_aug=""):
     img_name = (img_name
                 if img_aug == ""
                 else ("_" + img_aug + ".").join(img_name.split(".")))
-    pcv.print_image(img, "/".join([dest, img_name]))
+    dest_path = "/".join([dest, img_name])
+    pcv.print_image(img, dest_path)
 #    pcv.plot_image(img)
-    print(img)
-    return img
+    return dest_path
 
 
 def gaussian_blur(img, img_name, dest):
@@ -34,11 +35,7 @@ def gaussian_blur(img, img_name, dest):
     gaussian_img = pcv.threshold.gaussian(gray_img, ksize=250, offset=15,
                                           object_type='dark')
     gaussian_img = pcv.gaussian_blur(gaussian_img, (5, 5))
-    return np.array(return_image(
-        gaussian_img,
-        img_name,
-        dest,
-        "GaussianBlur"))
+    return return_image(gaussian_img, img_name, dest, "GaussianBlur")
 #
 #
 #def blur_image(img, img_name, dest):
@@ -179,8 +176,11 @@ def show_transformation(path, dest):
         fig.suptitle(f"Transformation images of {path}")
         ax = fig.subplots(1, len(images))
         print(f"len image = {len(images)}")
-        for index, image in enumerate(images):
-            ax[index].imshow(image)
+        for index, image_path in enumerate(images):
+            print(f"image path = {image_path}")
+            image = Image.open(image_path)
+            print(type(image))
+            ax[index].imshow(np.array(image.convert("RGB")))
             ax[index].title.set_text(image_labels[index])
             ax[index].axis("off")
         plt.show()
@@ -235,7 +235,6 @@ def show_transformation(path, dest):
 
 
 def main():
-    print(pcv)
     parser = ArgumentParser()
     parser.add_argument("path",
                         type=str,
