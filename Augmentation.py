@@ -12,7 +12,7 @@ from PIL import Image, ImageFilter, ImageEnhance
 image_labels = [
     "Original",
     "Rotation",
-    "Blue",
+    "Blur",
     "Contrast",
     "Scaling",
     "Illumination",
