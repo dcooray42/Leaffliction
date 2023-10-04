@@ -1,5 +1,4 @@
 from argparse import ArgumentParser
-import copy
 from Data import FolderData
 import glob
 import matplotlib.pyplot as plt
@@ -75,6 +74,16 @@ def analyze_object_image(img, img_name, dest, mask):
     return return_image(shape_img, img_name, dest, "AnalyzeObject")
 
 
+def pseudolandmarks_image(img, img_name, dest, mask):
+    pcv.params.debug = "print"
+    pcv.homology.x_axis_pseudolandmarks(img=img, mask=mask)
+    pcv.params.debug = None
+    for path_file in glob.glob("*_x_axis_pseudolandmarks.png"):
+        pseudo_img = pcv.readimage(path_file)[0]
+        os.remove(path_file)
+    return return_image( pseudo_img, img_name, dest, "Pseudolandmarks")
+
+
 def histogram_image(img, img_name, dest, mask):
     pcv.analyze.color(img,
                       mask,
@@ -97,15 +106,6 @@ def histogram_image(img, img_name, dest, mask):
             df = pd.concat([df, pd.DataFrame(data)], ignore_index=True)
     fig = px.line(df, x="Pixel intensity", y="Proportions of pixels (%)", color="color Channel")
     return return_image(fig, img_name, dest, "Histogram")
-
-
-#def brightness_image(img, img_name, dest):
-#    bright_img = ImageEnhance.Brightness(img)
-#    return np.array(return_image(
-#        bright_img.enhance(1.5),
-#        img_name,
-#        dest,
-#        "Illumination"))
 
 
 def apply_augmentation(func, images, img, img_name, dest, iter):
@@ -133,7 +133,7 @@ def transformation(path, dest):
         images.append(mask_image(vis, img_name, dest, mask))
         images.append(roi_image(vis, img_name, dest, mask))
         images.append(analyze_object_image(vis, img_name, dest, mask))
-#        images.append(return_image(vis, img_name, dest))
+        images.append(pseudolandmarks_image(vis, img_name, dest, mask))
         images.append(histogram_image(vis, img_name, dest, mask))
     except Exception as e:
         raise e
