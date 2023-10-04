@@ -1,23 +1,36 @@
+import altair as alt
 from argparse import ArgumentParser
+import cv2
 from Data import FolderData
 import glob
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import pandas as pd
 from pathlib import Path
 from plantcv import plantcv as pcv
 from PIL import Image
+import plotly.express as px
+
 
 
 image_labels = [
     "Original",
     "Gaussian Blur",
-    "Blue",
-    "Contrast",
-    "Scaling",
-    "Illumination",
-    "Projective"
+    "Mask",
+    "Roi objects",
+    "Analyze object",
+    "Pseudolandmarks"
 ]
+
+
+def create_mask(img):
+    gray_img = pcv.rgb2gray(img)
+    bin_mask = pcv.threshold.gaussian(gray_img=gray_img, ksize=250, offset=15,
+                                          object_type="dark")
+    rect_roi = pcv.roi.rectangle(img=img, x=0, y=0, h=256, w=256)
+    cleaned_mask = pcv.fill(bin_img=bin_mask, size=50)
+    return pcv.roi.filter(mask=cleaned_mask, roi=rect_roi, roi_type="partial")
 
 
 def return_image(img, img_name, dest, img_aug=""):
@@ -30,45 +43,30 @@ def return_image(img, img_name, dest, img_aug=""):
     return dest_path
 
 
-def gaussian_blur(img, img_name, dest):
-    gray_img = pcv.rgb2gray(img)
-    gaussian_img = pcv.threshold.gaussian(gray_img, ksize=250, offset=15,
-                                          object_type='dark')
-    gaussian_img = pcv.gaussian_blur(gaussian_img, (5, 5))
+def gaussian_blur(img, img_name, dest, mask):
+    gaussian_img = pcv.gaussian_blur(mask, (5, 5))
     return return_image(gaussian_img, img_name, dest, "GaussianBlur")
-#
-#
-#def blur_image(img, img_name, dest):
-#    return np.array(return_image(
-#        img.filter(ImageFilter.GaussianBlur(2)),
-#        img_name,
-#        dest,
-#        "Blur"))
-#
-#
-#def contrast_image(img, img_name, dest):
-#    contrast_img = ImageEnhance.Contrast(img)
-#    return np.array(return_image(
-#        contrast_img.enhance(2),
-#        img_name,
-#        dest,
-#        "Contrast"))
-#
-#
-#def zoom_image(img, img_name, dest):
-#    width, height = img.size
-#    zoom = 10.0
-#    new_border_x = (width * zoom) / 100
-#    new_border_y = (height * zoom) / 100
-#    zoom_img = img.crop((new_border_x,
-#                         new_border_y,
-#                         width - new_border_x,
-#                         height - new_border_y))
-#    return np.array(return_image(
-#        zoom_img.resize((width, height)),
-#        img_name,
-#        dest,
-#        "Scaling"))
+
+
+def mask_image(img, img_name, dest, mask):
+    masked_image = pcv.apply_mask(img=img, mask=mask, mask_color="white")
+    return return_image(masked_image, img_name, dest, "Mask")
+
+
+def roi_image(img, img_name, dest, mask):
+#    green_overlay = np.zeros_like(mask)
+#    green_overlay[:, :, 1] = 255
+#    green_masked_image = cv2.bitwise_and(green_overlay, green_overlay, mask=mask)
+#    green_overlay = pcv.visualize.colorize_masks(mask=mask, colors={"green": [0, 255, 0]})
+    roi_img = pcv.analyze.size(img=img, labeled_mask=mask)
+    return return_image(roi_img, img_name, dest, "ROI")
+
+
+def analyze_object_image(img, img_name, dest, mask):
+    shape_img = pcv.analyze.size(img=img, labeled_mask=mask)
+    return return_image(shape_img, img_name, dest, "AnalyzeObject")
+
+
 #
 #
 #def brightness_image(img, img_name, dest):
@@ -140,12 +138,13 @@ def transformation(path, dest):
     try:
         img_name = path.split("/")[-1]
         vis = pcv.readimage(path)[0]
+        mask = create_mask(vis)
         images = []
         images.append(return_image(vis, img_name, dest))
-        images.append(gaussian_blur(vis, img_name, dest))
-#        images.append(return_image(vis, img_name, dest))
-#        images.append(return_image(vis, img_name, dest))
-#        images.append(return_image(vis, img_name, dest))
+        images.append(gaussian_blur(vis, img_name, dest, mask))
+        images.append(mask_image(vis, img_name, dest, mask))
+        images.append(roi_image(vis, img_name, dest, mask))
+        images.append(analyze_object_image(vis, img_name, dest, mask))
 #        images.append(return_image(vis, img_name, dest))
     except Exception as e:
         raise e
@@ -169,21 +168,47 @@ def transformation(path, dest):
 #    return iter - 1
 
 
+def display_hist(path):
+    ori_img = pcv.readimage(path)[0]
+    pcv.analyze.color(ori_img,
+                      create_mask(ori_img),
+                      n_labels=1,
+                      colorspaces="all",
+                      label="plant_hist")
+    hist_data = pcv.outputs.observations["plant_hist1"]
+    columns = ["Pixel intensity", "Proportions of pixels (%)", "color Channel"]
+    df = pd.DataFrame(columns=columns)
+    for key in hist_data.keys():
+        if "_frequencies" in key:
+            x = list(range(0, 256))
+            y = hist_data[key]["value"]
+            color = [key.replace("_frequencies", "") for _ in range(0, 256)]
+            while len(y) < 256:
+                y.append(0)
+            data = {"Pixel intensity": x,
+                    "Proportions of pixels (%)": y,
+                    "color Channel": color}
+            df = pd.concat([df, pd.DataFrame(data)], ignore_index=True)
+    fig = px.line(df, x="Pixel intensity", y="Proportions of pixels (%)", color="color Channel")
+    fig.show()
+
+
 def show_transformation(path, dest):
     try:
-        images = transformation(path, dest)
-        fig = plt.figure(constrained_layout=True)
-        fig.suptitle(f"Transformation images of {path}")
-        ax = fig.subplots(1, len(images))
-        print(f"len image = {len(images)}")
-        for index, image_path in enumerate(images):
-            print(f"image path = {image_path}")
-            image = Image.open(image_path)
-            print(type(image))
-            ax[index].imshow(np.array(image.convert("RGB")))
-            ax[index].title.set_text(image_labels[index])
-            ax[index].axis("off")
-        plt.show()
+#        images = transformation(path, dest)
+#        fig = plt.figure(constrained_layout=True)
+#        fig.suptitle(f"Transformation images of {path}")
+#        ax = fig.subplots(1, len(images))
+#        print(f"len image = {len(images)}")
+#        for index, image_path in enumerate(images):
+#            print(f"image path = {image_path}")
+#            image = Image.open(image_path)
+#            print(type(image))
+#            ax[index].imshow(np.array(image.convert("RGB")))
+#            ax[index].title.set_text(image_labels[index])
+#            ax[index].axis("off")
+#        plt.show()
+        display_hist(path)
     except Exception as e:
         raise e
 
