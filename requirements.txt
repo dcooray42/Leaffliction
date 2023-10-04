@@ -1,7 +1,6 @@
-altair==5.1.2
+kaleido==0.2.1
 matplotlib==3.7.1
 numpy==1.24.2
-opencv_python==4.8.1.78
 pandas==2.0.0
 Pillow==9.5.0
 plantcv==4.0.1

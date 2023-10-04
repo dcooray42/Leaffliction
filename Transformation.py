@@ -1,6 +1,5 @@
-import altair as alt
 from argparse import ArgumentParser
-import cv2
+import copy
 from Data import FolderData
 import glob
 import matplotlib.pyplot as plt
@@ -13,21 +12,21 @@ from PIL import Image
 import plotly.express as px
 
 
-
 image_labels = [
     "Original",
     "Gaussian Blur",
     "Mask",
     "Roi objects",
     "Analyze object",
-    "Pseudolandmarks"
+    "Pseudolandmarks",
+    "Histogram"
 ]
 
 
 def create_mask(img):
     gray_img = pcv.rgb2gray(img)
     bin_mask = pcv.threshold.gaussian(gray_img=gray_img, ksize=250, offset=15,
-                                          object_type="dark")
+                                      object_type="dark")
     rect_roi = pcv.roi.rectangle(img=img, x=0, y=0, h=256, w=256)
     cleaned_mask = pcv.fill(bin_img=bin_mask, size=50)
     return pcv.roi.filter(mask=cleaned_mask, roi=rect_roi, roi_type="partial")
@@ -38,13 +37,15 @@ def return_image(img, img_name, dest, img_aug=""):
                 if img_aug == ""
                 else ("_" + img_aug + ".").join(img_name.split(".")))
     dest_path = "/".join([dest, img_name])
-    pcv.print_image(img, dest_path)
-#    pcv.plot_image(img)
+    if type(img).__module__ == np.__name__:
+        pcv.print_image(img, dest_path)
+    else:
+        img.write_image(dest_path)
     return dest_path
 
 
-def gaussian_blur(img, img_name, dest, mask):
-    gaussian_img = pcv.gaussian_blur(mask, (5, 5))
+def gaussian_blur(img, img_name, dest):
+    gaussian_img = pcv.gaussian_blur(img, (5, 5))
     return return_image(gaussian_img, img_name, dest, "GaussianBlur")
 
 
@@ -54,11 +55,18 @@ def mask_image(img, img_name, dest, mask):
 
 
 def roi_image(img, img_name, dest, mask):
-#    green_overlay = np.zeros_like(mask)
-#    green_overlay[:, :, 1] = 255
-#    green_masked_image = cv2.bitwise_and(green_overlay, green_overlay, mask=mask)
-#    green_overlay = pcv.visualize.colorize_masks(mask=mask, colors={"green": [0, 255, 0]})
-    roi_img = pcv.analyze.size(img=img, labeled_mask=mask)
+    pcv.params.debug = "print"
+    pcv.roi.rectangle(img=img, x=0, y=0, h=256, w=256)
+    pcv.params.debug = None
+    for path_file in glob.glob("*_roi.png"):
+        roi_img = pcv.readimage(path_file)[0]
+        os.remove(path_file)
+    for index_y, y in enumerate(roi_img):
+        for index_x, _ in enumerate(y):
+            if (mask[index_y][index_x] != 0
+               and index_y > 3 and index_y < 252
+               and index_x > 3 and index_x < 252):
+                roi_img[index_y][index_x] = [0, 255, 0]
     return return_image(roi_img, img_name, dest, "ROI")
 
 
@@ -67,8 +75,30 @@ def analyze_object_image(img, img_name, dest, mask):
     return return_image(shape_img, img_name, dest, "AnalyzeObject")
 
 
-#
-#
+def histogram_image(img, img_name, dest, mask):
+    pcv.analyze.color(img,
+                      mask,
+                      n_labels=1,
+                      colorspaces="all",
+                      label="plant_hist")
+    hist_data = pcv.outputs.observations["plant_hist1"]
+    columns = ["Pixel intensity", "Proportions of pixels (%)", "color Channel"]
+    df = pd.DataFrame(columns=columns)
+    for key in hist_data.keys():
+        if "_frequencies" in key:
+            x = list(range(0, 256))
+            y = hist_data[key]["value"]
+            color = [key.replace("_frequencies", "") for _ in range(0, 256)]
+            while len(y) < 256:
+                y.append(0)
+            data = {"Pixel intensity": x,
+                    "Proportions of pixels (%)": y,
+                    "color Channel": color}
+            df = pd.concat([df, pd.DataFrame(data)], ignore_index=True)
+    fig = px.line(df, x="Pixel intensity", y="Proportions of pixels (%)", color="color Channel")
+    return return_image(fig, img_name, dest, "Histogram")
+
+
 #def brightness_image(img, img_name, dest):
 #    bright_img = ImageEnhance.Brightness(img)
 #    return np.array(return_image(
@@ -76,48 +106,6 @@ def analyze_object_image(img, img_name, dest, mask):
 #        img_name,
 #        dest,
 #        "Illumination"))
-#
-#
-#def projective_image(img, img_name, dest):
-#
-#    def find_coeffs(pa, pb):
-#        matrix = []
-#        for p1, p2 in zip(pa, pb):
-#            matrix.append([p1[0], p1[1], 1, 0, 0, 0,
-#                           -p2[0]*p1[0], -p2[0]*p1[1]])
-#            matrix.append([0, 0, 0, p1[0], p1[1], 1,
-#                           -p2[1]*p1[0], -p2[1]*p1[1]])
-#        A = np.matrix(matrix, dtype=float)
-#        B = np.array(pb).reshape(8)
-#        res = np.dot(np.linalg.inv(A.T * A) * A.T, B)
-#        return np.array(res).reshape(8)
-#
-#    width, height = img.size
-#    zoom = 10.0
-#    new_border_x = (width * zoom) / 100
-#    new_border_y = (height * zoom) / 100
-#    src_points = [
-#        (0, 0),
-#        (width, 0),
-#        (width, height),
-#        (0, height)
-#    ]
-#    dest_points = [
-#        (new_border_x / 2, new_border_y),
-#        (width - new_border_x, new_border_y / 2),
-#        (width - (new_border_x * 2), height - (new_border_y * 2)),
-#        (new_border_x, height)
-#    ]
-#    coeffs = find_coeffs(dest_points, src_points)
-#    projective_img = img.transform((width, height),
-#                                   Image.PERSPECTIVE,
-#                                   coeffs,
-#                                   Image.BICUBIC)
-#    return np.array(return_image(
-#        projective_img,
-#        img_name,
-#        dest,
-#        "Projective"))
 
 
 def apply_augmentation(func, images, img, img_name, dest, iter):
@@ -141,11 +129,12 @@ def transformation(path, dest):
         mask = create_mask(vis)
         images = []
         images.append(return_image(vis, img_name, dest))
-        images.append(gaussian_blur(vis, img_name, dest, mask))
+        images.append(gaussian_blur(mask, img_name, dest))
         images.append(mask_image(vis, img_name, dest, mask))
         images.append(roi_image(vis, img_name, dest, mask))
         images.append(analyze_object_image(vis, img_name, dest, mask))
 #        images.append(return_image(vis, img_name, dest))
+        images.append(histogram_image(vis, img_name, dest, mask))
     except Exception as e:
         raise e
     return images
@@ -168,47 +157,22 @@ def transformation(path, dest):
 #    return iter - 1
 
 
-def display_hist(path):
-    ori_img = pcv.readimage(path)[0]
-    pcv.analyze.color(ori_img,
-                      create_mask(ori_img),
-                      n_labels=1,
-                      colorspaces="all",
-                      label="plant_hist")
-    hist_data = pcv.outputs.observations["plant_hist1"]
-    columns = ["Pixel intensity", "Proportions of pixels (%)", "color Channel"]
-    df = pd.DataFrame(columns=columns)
-    for key in hist_data.keys():
-        if "_frequencies" in key:
-            x = list(range(0, 256))
-            y = hist_data[key]["value"]
-            color = [key.replace("_frequencies", "") for _ in range(0, 256)]
-            while len(y) < 256:
-                y.append(0)
-            data = {"Pixel intensity": x,
-                    "Proportions of pixels (%)": y,
-                    "color Channel": color}
-            df = pd.concat([df, pd.DataFrame(data)], ignore_index=True)
-    fig = px.line(df, x="Pixel intensity", y="Proportions of pixels (%)", color="color Channel")
-    fig.show()
-
 
 def show_transformation(path, dest):
     try:
-#        images = transformation(path, dest)
-#        fig = plt.figure(constrained_layout=True)
-#        fig.suptitle(f"Transformation images of {path}")
-#        ax = fig.subplots(1, len(images))
-#        print(f"len image = {len(images)}")
-#        for index, image_path in enumerate(images):
-#            print(f"image path = {image_path}")
-#            image = Image.open(image_path)
-#            print(type(image))
-#            ax[index].imshow(np.array(image.convert("RGB")))
-#            ax[index].title.set_text(image_labels[index])
-#            ax[index].axis("off")
-#        plt.show()
-        display_hist(path)
+        images = transformation(path, dest)
+        fig = plt.figure(constrained_layout=True)
+        fig.suptitle(f"Transformation images of {path}")
+        ax = fig.subplots(1, len(images))
+        print(f"len image = {len(images)}")
+        for index, image_path in enumerate(images):
+            print(f"image path = {image_path}")
+            image = Image.open(image_path)
+            print(type(image))
+            ax[index].imshow(np.array(image.convert("RGB")))
+            ax[index].title.set_text(image_labels[index])
+            ax[index].axis("off")
+        plt.show()
     except Exception as e:
         raise e
 
