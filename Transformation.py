@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 from Data import FolderData
+from Distribution import count_files_folder
 import glob
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,6 +10,7 @@ from pathlib import Path
 from plantcv import plantcv as pcv
 from PIL import Image
 import plotly.express as px
+from tqdm import tqdm
 
 
 image_labels = [
@@ -81,7 +83,7 @@ def pseudolandmarks_image(img, img_name, dest, mask):
     for path_file in glob.glob("*_x_axis_pseudolandmarks.png"):
         pseudo_img = pcv.readimage(path_file)[0]
         os.remove(path_file)
-    return return_image( pseudo_img, img_name, dest, "Pseudolandmarks")
+    return return_image(pseudo_img, img_name, dest, "Pseudolandmarks")
 
 
 def histogram_image(img, img_name, dest, mask):
@@ -104,15 +106,11 @@ def histogram_image(img, img_name, dest, mask):
                     "Proportions of pixels (%)": y,
                     "color Channel": color}
             df = pd.concat([df, pd.DataFrame(data)], ignore_index=True)
-    fig = px.line(df, x="Pixel intensity", y="Proportions of pixels (%)", color="color Channel")
+    fig = px.line(df,
+                  x="Pixel intensity",
+                  y="Proportions of pixels (%)",
+                  color="color Channel")
     return return_image(fig, img_name, dest, "Histogram")
-
-
-def apply_augmentation(func, images, img, img_name, dest, iter):
-    if iter > 0:
-        images.append(func(img, img_name, dest))
-    iter -= 1
-    return iter
 
 
 def transformation(path, dest):
@@ -140,24 +138,6 @@ def transformation(path, dest):
     return images
 
 
-#def copy_original_image(path, dest, iter):
-#    try:
-#        dest_folder = Path(dest)
-#        dest_folder.mkdir(parents=True, exist_ok=False)
-#    except FileExistsError:
-#        pass
-#    except Exception as e:
-#        raise e
-#    try:
-#        img_name = path.split("/")[-1]
-#        img = Image.open(path)
-#        return_image(img, img_name, dest)
-#    except Exception as e:
-#        raise e
-#    return iter - 1
-
-
-
 def show_transformation(path, dest):
     try:
         images = transformation(path, dest)
@@ -177,50 +157,35 @@ def show_transformation(path, dest):
         raise e
 
 
-#def transform_image_folder(dir, dest, depth_folder, max_num):
-#    for sub_dir in dir.get_sub_dir():
-#        tmp_num = max_num
-#        loop = True
-#        transformed_dest = dest + "/" + "/".join(
-#            sub_dir.get_path().split("/")[-depth_folder:])
-#        for path_file in glob.glob(sub_dir.get_path() + "/*.JPG"):
-#            if tmp_num > 0:
-#                tmp_num = copy_original_image(path_file,
-#                                              transformed_dest,
-#                                              tmp_num)
-#            else:
-#                loop = False
-#                break
-#        while loop:
-#            for path_file in glob.glob(sub_dir.get_path() + "/*.JPG"):
-#                if tmp_num > 0:
-#                    tmp_num = augmentation(path_file,
-#                                           transformed_dest,
-#                                           tmp_num,
-#                                           False)[1]
-#                else:
-#                    loop = False
-#                    break
+def transform_image_folder(dir, dest, depth_folder):
+    for sub_dir in dir.get_sub_dir():
+        transformed_dest = dest + "/" + "/".join(
+            sub_dir.get_path().split("/")[-depth_folder:])
+        for path_file in tqdm(glob.glob(sub_dir.get_path() + "/*.JPG")):
+            file_name = path_file.split("/")[-1]
+            final_dest = transformed_dest + "/" + file_name.replace(".JPG", "")
+            transformation(path_file,
+                           final_dest)
 
 
-#def balance_transformation(path, dest):
-#    try:
-#        multiple_sub_dir = True
-#        data = FolderData(path)
-#        max_img = get_max_image(data, path)
-#        sub_dir = data.get_sub_dir()
-#        for dir in sub_dir:
-#            dir_path = dir.get_path()
-#            if (not dir_path.endswith("Apple")
-#               and not dir_path.endswith("Grape")):
-#                multiple_sub_dir = False
-#        if multiple_sub_dir:
-#            for dir in sub_dir:
-#                transform_image_folder(dir, dest, 2, max_img)
-#        else:
-#            transform_image_folder(data, dest, 1, max_img)
-#    except Exception as e:
-#        raise e
+def balance_transformation(path, dest):
+    try:
+        multiple_sub_dir = True
+        data = FolderData(path)
+        count_files_folder(data)
+        sub_dir = data.get_sub_dir()
+        for dir in sub_dir:
+            dir_path = dir.get_path()
+            if (not dir_path.endswith("Apple")
+               and not dir_path.endswith("Grape")):
+                multiple_sub_dir = False
+        if multiple_sub_dir:
+            for dir in sub_dir:
+                transform_image_folder(dir, dest, 2)
+        else:
+            transform_image_folder(data, dest, 1)
+    except Exception as e:
+        raise e
 
 
 def main():
@@ -232,17 +197,17 @@ def main():
                         type=str,
                         help="Path of the folder where to save the images")
     args = parser.parse_args()
-#    try:
-    args = vars(args)
-    args["path"] = args["path"].rstrip("/")
-    args["dest"] = args["dest"].rstrip("/")
-    if os.path.isfile(args["path"]):
-        show_transformation(**args)
-#        else:
-#            balance_augmentation(**args)
-#    except Exception as e:
-#        print(str(e))
-#        parser.print_help()
+    try:
+        args = vars(args)
+        args["path"] = args["path"].rstrip("/")
+        args["dest"] = args["dest"].rstrip("/")
+        if os.path.isfile(args["path"]):
+            show_transformation(**args)
+        else:
+            balance_transformation(**args)
+    except Exception as e:
+        print(str(e))
+        parser.print_help()
 
 
 if __name__ == "__main__":

@@ -30,8 +30,9 @@ def return_image(img, img_name, dest, img_aug=""):
 
 
 def rotate_image(img, img_name, dest):
+    width, height = img.size
     return np.array(return_image(
-        img.rotate(-10, expand=True),
+        img.rotate(-10, expand=True).resize((width, height)),
         img_name,
         dest,
         "Rotate"))
