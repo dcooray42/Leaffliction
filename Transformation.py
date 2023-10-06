@@ -148,7 +148,6 @@ def show_transformation(path, dest):
         for index, image_path in enumerate(images):
             print(f"image path = {image_path}")
             image = Image.open(image_path)
-            print(type(image))
             ax[index].imshow(np.array(image.convert("RGB")))
             ax[index].title.set_text(image_labels[index])
             ax[index].axis("off")
