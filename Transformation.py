@@ -59,7 +59,12 @@ def roi_image(img, img_name, dest, mask):
     pcv.params.debug = "print"
     pcv.roi.rectangle(img=img, x=0, y=0, h=256, w=256)
     pcv.params.debug = None
-    for path_file in glob.glob("*_roi.png"):
+    file_exist = glob.glob("*_roi.png")
+    if len(file_exist) == 0:
+        raise Exception("error: File doesn't exist")
+    if len(file_exist) > 1:
+        raise Exception("error: Multiple files found")
+    for path_file in file_exist:
         roi_img = pcv.readimage(path_file)[0]
         os.remove(path_file)
     for index_y, y in enumerate(roi_img):
@@ -80,7 +85,12 @@ def pseudolandmarks_image(img, img_name, dest, mask):
     pcv.params.debug = "print"
     pcv.homology.x_axis_pseudolandmarks(img=img, mask=mask)
     pcv.params.debug = None
-    for path_file in glob.glob("*_x_axis_pseudolandmarks.png"):
+    file_exist = glob.glob("*_x_axis_pseudolandmarks.png")
+    if len(file_exist) == 0:
+        raise Exception("error: File doesn't exist")
+    if len(file_exist) > 1:
+        raise Exception("error: Multiple files found")
+    for path_file in file_exist:
         pseudo_img = pcv.readimage(path_file)[0]
         os.remove(path_file)
     return return_image(pseudo_img, img_name, dest, "Pseudolandmarks")
@@ -126,7 +136,7 @@ def transformation(path, dest):
         vis = pcv.readimage(path)[0]
         mask = create_mask(vis)
         images = []
-        images.append(return_image(vis, img_name, dest))
+        images.append(return_image(vis, img_name, dest, "Original"))
         images.append(gaussian_blur(mask, img_name, dest))
         images.append(mask_image(vis, img_name, dest, mask))
         images.append(roi_image(vis, img_name, dest, mask))

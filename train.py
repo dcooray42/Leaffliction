@@ -8,12 +8,14 @@ import os
 import pandas as pd
 from pathlib import Path
 from plantcv import plantcv as pcv
+import pickle
 from PIL import Image
 import plotly.express as px
 from tqdm import tqdm
 
 
 image_names = {
+    "Original" : "Original",
     "GaussianBlur" : "Gaussian Blur",
     "Mask" : "Mask",
     "ROI" : "Roi Objects",
@@ -53,6 +55,7 @@ def transform_image_folder(dir):
             y.append(num_class)
             for path_file in glob.glob(folder.get_path() + "/*.JPG"):
                 file_name = path_file.split("/")[-1]
+                file_found = False
                 try:
                     img_data = Image.open(path_file).convert("RGB")
                 except Exception as e:
@@ -60,20 +63,22 @@ def transform_image_folder(dir):
                 for key in image_names.keys():
                     if key in file_name:
                         data[image_names[key]].append(img_data)
-                    else:
-                        data["Original"].append(img_data)
-                for info in data.keys():
-                    print(info, len(data[info]))
+                        file_found = True
+                        break
+                if file_found == False:
+                    raise Exception("error: feature not found")
     df = pd.DataFrame(data)
     target = pd.DataFrame({"target" : y})
     print(df.shape)
     print(target.shape)
     print(target["target"].value_counts())
-                        
+    return df, target
 
 
 def read_dataset(path):
     try:
+        df = pd.DataFrame(columns=image_names.values())
+        target = pd.DataFrame(columns=["target"])
         multiple_sub_dir = True
         data = FolderData(path)
         count_files_folder(data)
@@ -85,9 +90,22 @@ def read_dataset(path):
                 multiple_sub_dir = False
         if multiple_sub_dir:
             for dir in sub_dir:
-                transform_image_folder(dir)
+                x, y = transform_image_folder(dir)
+                df = pd.concat([df, x], ignore_index=True)
+                target = pd.concat([target, y], ignore_index=True)
         else:
-            transform_image_folder(data)
+            x, y = transform_image_folder(data)
+            df = pd.concat([df, x], ignore_index=True)
+            target = pd.concat([target, y], ignore_index=True)
+        print(df.shape)
+        print(target.shape)
+        print(target["target"].value_counts())
+        pkl_data = {
+            "x" : df,
+            "y" : target
+        }
+        with open("data.pkl", "wb") as f:
+            pickle.dump(pkl_data, f)
     except Exception as e:
         raise e
 
