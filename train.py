@@ -1,4 +1,6 @@
+from Augmentation import balance_augmentation
 from argparse import ArgumentParser
+import copy
 from Data import FolderData
 from Distribution import count_files_folder
 import glob
@@ -12,6 +14,7 @@ import pickle
 from PIL import Image
 import plotly.express as px
 from tqdm import tqdm
+from Transformation import balance_transformation
 
 
 image_names = {
@@ -62,7 +65,7 @@ def transform_image_folder(dir):
                     raise e
                 for key in image_names.keys():
                     if key in file_name:
-                        data[image_names[key]].append(img_data)
+                        data[image_names[key]].append(np.array(img_data.convert("RGB")))
                         file_found = True
                         break
                 if file_found == False:
@@ -100,6 +103,7 @@ def read_dataset(path):
         print(df.shape)
         print(target.shape)
         print(target["target"].value_counts())
+        print(df.head(10))
         pkl_data = {
             "x" : df,
             "y" : target
@@ -115,6 +119,9 @@ def main():
     parser.add_argument("path",
                         type=str,
                         help="Path of the folder or file to transform")
+    parser.add_argument("n_images_subfolder",
+                         type=int,
+                         help="Number of image to select in each subfolders")
 #    parser.add_argument("dest",
 #                        type=str,
 #                        help="Path of the folder where to save the images")
@@ -122,7 +129,13 @@ def main():
 #    try:
     args = vars(args)
     args["path"] = args["path"].rstrip("/")
-#        args["dest"] = args["dest"].rstrip("/")
+    args["dest"] = args["path"] + "/augmented_data"
+    balance_augmentation(**args)
+    args["path"], args["dest"] = args["dest"], args["path"] + "/dataset"
+    del args["n_images_subfolder"]
+    balance_transformation(**args)
+    args["path"] = args["dest"]
+    del args["dest"]
     read_dataset(**args)
 #    except Exception as e:
 #        print(str(e))

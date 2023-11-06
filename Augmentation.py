@@ -7,6 +7,7 @@ import numpy as np
 import os
 from pathlib import Path
 from PIL import Image, ImageFilter, ImageEnhance
+import random
 
 
 image_labels = [
@@ -199,7 +200,9 @@ def balance_image_folder(dir, dest, depth_folder, max_num):
         loop = True
         transformed_dest = dest + "/" + "/".join(
             sub_dir.get_path().split("/")[-depth_folder:])
-        for path_file in glob.glob(sub_dir.get_path() + "/*.JPG"):
+        image_path_list = glob.glob(sub_dir.get_path() + "/*.JPG")
+        random.shuffle(image_path_list)
+        for path_file in image_path_list:
             if tmp_num > 0:
                 tmp_num = copy_original_image(path_file,
                                               transformed_dest,
@@ -208,7 +211,9 @@ def balance_image_folder(dir, dest, depth_folder, max_num):
                 loop = False
                 break
         while loop:
-            for path_file in glob.glob(sub_dir.get_path() + "/*.JPG"):
+            image_path_list = glob.glob(sub_dir.get_path() + "/*.JPG")
+            random.shuffle(image_path_list)
+            for path_file in image_path_list:
                 if tmp_num > 0:
                     tmp_num = augmentation(path_file,
                                            transformed_dest,
@@ -229,7 +234,6 @@ def get_max_image(data, path):
         return max_num
 
     max_num = 0
-    count_files_folder(data)
     sub_dir = data.get_sub_dir()
     for dir in sub_dir:
         dir_path = dir.get_path()
@@ -246,11 +250,14 @@ def get_max_image(data, path):
     return max_num
 
 
-def balance_augmentation(path, dest):
+def balance_augmentation(path, dest, n_images_subfolder=-1):
     try:
         multiple_sub_dir = True
         data = FolderData(path)
-        max_img = get_max_image(data, path)
+        count_files_folder(data)
+        max_img = (get_max_image(data, path)
+                   if n_images_subfolder == -1
+                   else n_images_subfolder)
         sub_dir = data.get_sub_dir()
         for dir in sub_dir:
             dir_path = dir.get_path()
