@@ -171,10 +171,8 @@ def transform_image_folder(dir, dest, depth_folder):
         transformed_dest = dest + "/" + "/".join(
             sub_dir.get_path().split("/")[-depth_folder:])
         for path_file in tqdm(glob.glob(sub_dir.get_path() + "/*.JPG")):
-            file_name = path_file.split("/")[-1]
-            final_dest = transformed_dest + "/" + file_name.replace(".JPG", "")
             transformation(path_file,
-                           final_dest)
+                           transformed_dest)
 
 
 def balance_transformation(path, dest):
@@ -190,7 +188,7 @@ def balance_transformation(path, dest):
                 multiple_sub_dir = False
         if multiple_sub_dir:
             for dir in sub_dir:
-                transform_image_folder(dir, dest, 2)
+                transform_image_folder(dir, dest, 1)
         else:
             transform_image_folder(data, dest, 1)
     except Exception as e:

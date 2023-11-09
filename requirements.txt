@@ -5,3 +5,4 @@ pandas==2.0.0
 Pillow==9.5.0
 plantcv==4.0.1
 plotly==5.17.0
+tensorflow==2.13.1
