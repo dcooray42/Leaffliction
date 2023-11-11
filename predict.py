@@ -35,53 +35,25 @@ def show_original(path, ax):
 
 def show_mask(path, ax):
     img = pcv.readimage(path)[0]
-#    print(pcv.image_info(img)["size"])
-    s = pcv.rgb2gray_hsv(rgb_img=img, channel='s')
-    s_thresh = pcv.threshold.binary(gray_img=s, threshold=85, object_type='light')
-    pcv.print_image(img=s_thresh, filename="s_thresh.jpg")
+    s = pcv.rgb2gray_hsv(rgb_img=img, channel="s")
+    s_thresh = pcv.threshold.binary(gray_img=s, threshold=85, object_type="light")
     s_mblur = pcv.median_blur(gray_img=s_thresh, ksize=5)
-    gaussian_img = pcv.gaussian_blur(img=s_thresh, ksize=(5, 5), sigma_x=0, sigma_y=None)
-    pcv.print_image(img=gaussian_img, filename="gaussian_img.jpg")
-    b = pcv.rgb2gray_lab(rgb_img=img, channel='b')
-    b_thresh = pcv.threshold.binary(gray_img=b, threshold=121, 
-                                object_type='light')
-    pcv.print_image(img=b_thresh, filename="b_thresh.jpg")
+    b = pcv.rgb2gray_lab(rgb_img=img, channel="b")
+    b_thresh = pcv.threshold.binary(gray_img=b, threshold=118, 
+                                object_type="light")
     bs = pcv.logical_or(bin_img1=s_mblur, bin_img2=b_thresh)
-    masked = pcv.apply_mask(img=img, mask=bs, mask_color='white')
-    pcv.print_image(img=masked, filename="masked.jpg")
-    masked_a = pcv.rgb2gray_lab(rgb_img=masked, channel='a')
-    pcv.print_image(img=masked_a, filename="masked_a.jpg")
-    masked_b = pcv.rgb2gray_lab(rgb_img=masked, channel='b')
-    pcv.print_image(img=masked_b, filename="masked_b.jpg")
-    maskeda_thresh = pcv.threshold.binary(gray_img=masked_a, threshold=127, 
-                                      object_type='dark')
-    pcv.print_image(img=maskeda_thresh, filename="maskeda_thresh.jpg")
-    maskeda_thresh1 = pcv.threshold.binary(gray_img=masked_a, threshold=135, 
-                                       object_type='light')
-    pcv.print_image(img=maskeda_thresh1, filename="maskeda_thresh1.jpg")
-    maskedb_thresh = pcv.threshold.binary(gray_img=masked_b, threshold=128, 
-                                      object_type='light')
-    pcv.print_image(img=maskedb_thresh, filename="maskedb_thresh.jpg")
-    ab1 = pcv.logical_or(bin_img1=maskeda_thresh, bin_img2=maskedb_thresh)
-    ab = pcv.logical_or(bin_img1=maskeda_thresh1, bin_img2=ab1)
-    pcv.print_image(img=ab, filename="ab.jpg")
-    xor_img = pcv.logical_xor(bin_img1=maskeda_thresh, bin_img2=maskedb_thresh)
-    xor_img_color = pcv.apply_mask(img=img, mask=xor_img,
+    masked = pcv.apply_mask(img=img, mask=bs, mask_color="white")
+    masked_a = pcv.rgb2gray_lab(rgb_img=masked, channel="a")
+    maskeda_thresh = pcv.threshold.binary(gray_img=masked_a, threshold=130, 
+                                       object_type="light")
+    xor_img = pcv.logical_xor(bin_img1=bs, bin_img2=maskeda_thresh)
+    final_img = pcv.apply_mask(img=img, mask=xor_img,
                                        mask_color="white")
-    ab_fill = pcv.fill(bin_img=ab, size=200)
-    pcv.print_image(img=ab_fill, filename="ab_fill.jpg")
-    masked2 = pcv.apply_mask(img=masked, mask=ab_fill, mask_color='white')
-    pcv.print_image(img=xor_img_color, filename="xor.jpg")
-    pcv.print_image(img=masked2, filename="masked2.jpg")
-    roi = pcv.roi.rectangle(img=masked2, x=0, y=0, h=256, w=256)
-    filtered_mask = pcv.roi.filter(ab_fill, roi, roi_type="partial")
-    total_mask = pcv.apply_mask(img=img, mask=filtered_mask, mask_color='white')
-    pcv.print_image(img=total_mask, filename="mask.jpg")
+    pcv.print_image(img=final_img, filename="mask.jpg")
     image = Image.open("mask.jpg")
     ax[1].imshow(np.array(image.convert("RGB")))
     ax[1].title.set_text("Masked")
     ax[1].axis("off")
-
 
 
 def show_predict(img_path):
