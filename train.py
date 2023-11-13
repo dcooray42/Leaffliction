@@ -45,7 +45,7 @@ def create_cnn(num_classes):
 
 
 def train(model, dataset):
-    history = model.fit(dataset[0], epochs=10, validation_data=dataset[1])
+    history = model.fit(dataset[0], epochs=5, validation_data=dataset[1])
     model.save("model.keras")
     pkl_data = {
         "history" : history,

@@ -1,5 +1,4 @@
 from argparse import ArgumentParser
-import cv2
 import glob
 import matplotlib.pyplot as plt
 import numpy as np
@@ -8,6 +7,7 @@ import os
 from PIL import Image
 from plantcv import plantcv as pcv
 #from tensorflow.keras.models import load_model
+from Transformation import create_mask
 #
 #
 #def predict(img_path, model_path, label_path):
@@ -36,33 +36,45 @@ def show_original(path, ax):
 
 def show_mask(path, ax):
     img = pcv.readimage(path)[0]
-    s = pcv.rgb2gray_hsv(rgb_img=img, channel="s")
-    s_thresh = pcv.threshold.binary(gray_img=s,
-                                    threshold=85,
-                                    object_type="light")
-    s_mblur = pcv.median_blur(gray_img=s_thresh, ksize=5)
-    b = pcv.rgb2gray_lab(rgb_img=img, channel="b")
-    b_thresh = pcv.threshold.binary(gray_img=b, threshold=118,
-                                    object_type="light")
-    bs = pcv.logical_or(bin_img1=s_mblur, bin_img2=b_thresh)
-    masked = pcv.apply_mask(img=img, mask=bs, mask_color="white")
-    masked_a = pcv.rgb2gray_lab(rgb_img=masked, channel="a")
-    masked_b = pcv.rgb2gray_lab(rgb_img=masked, channel="b")
-    kernel = np.ones((25, 25), np.uint8)
+#    s = pcv.rgb2gray_hsv(rgb_img=img, channel="s")
+#    s_thresh = pcv.threshold.binary(gray_img=s,
+#                                    threshold=85,
+#                                    object_type="light")
+#    s_mblur = pcv.median_blur(gray_img=s_thresh, ksize=5)
+#    b = pcv.rgb2gray_lab(rgb_img=img, channel="b")
+#    b_thresh = pcv.threshold.binary(gray_img=b, threshold=118,
+#                                    object_type="light")
+#    bs = pcv.logical_or(bin_img1=s_mblur, bin_img2=b_thresh)
+#    masked = pcv.apply_mask(img=img, mask=bs, mask_color="white")
+    masked_a = pcv.rgb2gray_lab(rgb_img=img, channel="a")
+    masked_b = pcv.rgb2gray_lab(rgb_img=img, channel="b")
     maskeda_thresh = pcv.threshold.binary(gray_img=masked_a, threshold=125,
                                           object_type='dark')
     maskeda_thresh = pcv.fill(bin_img=maskeda_thresh, size=100)
-    maskeda_thresh = cv2.morphologyEx(maskeda_thresh, cv2.MORPH_CLOSE, kernel)
+    maskeda_thresh = pcv.fill_holes(bin_img=maskeda_thresh)
     maskedb_thresh = pcv.threshold.binary(gray_img=masked_b, threshold=140,
                                           object_type="light")
     maskedb_thresh = pcv.fill(bin_img=maskedb_thresh, size=100)
-    maskedb_thresh = cv2.morphologyEx(maskedb_thresh, cv2.MORPH_CLOSE, kernel)
+    maskedb_thresh = pcv.fill_holes(bin_img=maskedb_thresh)
     xor_filter_mask = pcv.logical_xor(bin_img1=maskeda_thresh, bin_img2=maskedb_thresh)
     or_filter_mask_1 = pcv.logical_or(bin_img1=maskeda_thresh, bin_img2=xor_filter_mask)
     or_filter_mask_2 = pcv.logical_or(bin_img1=maskedb_thresh, bin_img2=xor_filter_mask)
     inter_final_mask_1 = pcv.logical_and(bin_img1=or_filter_mask_1, bin_img2=maskedb_thresh)
     inter_final_mask_2 = pcv.logical_and(bin_img1=or_filter_mask_2, bin_img2=maskeda_thresh)
     final_mask = pcv.logical_or(bin_img1=inter_final_mask_1, bin_img2=inter_final_mask_2)
+    h = pcv.rgb2gray_hsv(rgb_img=img, channel="h")
+    s = pcv.rgb2gray_hsv(rgb_img=img, channel="s")
+    v = pcv.rgb2gray_hsv(rgb_img=img, channel="v")
+    h = pcv.threshold.binary(gray_img=h, threshold=118,
+                                    object_type="dark")
+    s = pcv.threshold.binary(gray_img=s, threshold=140,
+                                    object_type="light")
+    v = pcv.threshold.binary(gray_img=v, threshold=20,
+                                    object_type="dark")
+    pcv.print_image(h, "h.JPG")
+    pcv.print_image(s, "s.JPG")
+    pcv.print_image(v, "v.JPG")
+#    mask = create_mask(img)
     final_img = pcv.apply_mask(img=img,
                                mask=final_mask,
                                mask_color="white")
@@ -89,14 +101,14 @@ def show_predict(img_path, model_path, label_path):
         ax1 = fig.add_subplot(gs[0, 1])
         show_mask(img_path, ax1)
         ax2 = fig.add_subplot(gs[1, :])
-#        predicted_class = predict(img_path, model_path, label_path)
-#        additional_text = f"File name : {img_path}\nPredicted class : {predicted_class}"
-#        ax2.text(0.5,
-#                 0.5,
-#                 additional_text,
-#                 ha='center',
-#                 va='center',
-#                 fontsize=12)
+    #    predicted_class = predict(img_path, model_path, label_path)
+    #    additional_text = f"File name : {img_path}\nPredicted class : {predicted_class}"
+    #    ax2.text(0.5,
+    #             0.5,
+    #             additional_text,
+    #             ha='center',
+    #             va='center',
+    #             fontsize=12)
         ax2.axis("off")
         plt.show()
     except Exception as e:
