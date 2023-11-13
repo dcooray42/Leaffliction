@@ -71,29 +71,26 @@ def main():
     parser.add_argument("path",
                         type=str,
                         help="Path of the folder or file to transform")
-    parser.add_argument("--n_images_subfolder",
-                        type=int,
-                        default=-1,
-                        help="Number of images to select in each subfolder",
-                        required=False)
+#    parser.add_argument("--n_images_subfolder",
+#                        type=int,
+#                        default=-1,
+#                        help="Number of images to select in each subfolder",
+#                        required=False)
 
     args = parser.parse_args()
-#    try:
-    args = vars(args)
-#    args["path"] = args["path"].rstrip("/")
-#    args["dest"] = args["path"] + "/augmented_data"
-#    balance_augmentation(**args)
-#    args["path"], args["dest"] = args["dest"], args["path"] + "/dataset"
-    del args["n_images_subfolder"]
-#    balance_transformation(**args)
-#    args["path"] = args["dest"]
-#    del args["dest"]
-    dataset = read_dataset(**args)
-    model = create_cnn(len(set(dataset[0].class_names).union(set(dataset[1].class_names))))
-    train(model, dataset)
-#    except Exception as e:
-#        print(str(e))
-#        parser.print_help()
+    try:
+        args = vars(args)
+        args["path"] = args["path"].rstrip("/")
+        args["dest"] = args["path"] + "/augmented_data"
+        balance_augmentation(**args)
+        args["path"], args["dest"] = args["dest"], args["path"] + "/dataset"
+        balance_transformation(**args)
+        dataset = read_dataset(args["dest"])
+        model = create_cnn(len(set(dataset[0].class_names).union(set(dataset[1].class_names))))
+        train(model, dataset)
+    except Exception as e:
+        print(str(e))
+        parser.print_help()
 
 
 if __name__ == "__main__":

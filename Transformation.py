@@ -1,4 +1,5 @@
 from argparse import ArgumentParser
+import cv2
 from Data import FolderData
 from Distribution import count_files_folder
 import glob
@@ -25,12 +26,34 @@ image_labels = [
 
 
 def create_mask(img):
-    gray_img = pcv.rgb2gray(img)
-    bin_mask = pcv.threshold.gaussian(gray_img=gray_img, ksize=250, offset=15,
-                                      object_type="dark")
-    rect_roi = pcv.roi.rectangle(img=img, x=0, y=0, h=256, w=256)
-    cleaned_mask = pcv.fill(bin_img=bin_mask, size=50)
-    return pcv.roi.filter(mask=cleaned_mask, roi=rect_roi, roi_type="partial")
+    s = pcv.rgb2gray_hsv(rgb_img=img, channel="s")
+    s_thresh = pcv.threshold.binary(gray_img=s,
+                                    threshold=85,
+                                    object_type="light")
+    s_mblur = pcv.median_blur(gray_img=s_thresh, ksize=5)
+    b = pcv.rgb2gray_lab(rgb_img=img, channel="b")
+    b_thresh = pcv.threshold.binary(gray_img=b, threshold=118,
+                                    object_type="light")
+    bs = pcv.logical_or(bin_img1=s_mblur, bin_img2=b_thresh)
+    masked = pcv.apply_mask(img=img, mask=bs, mask_color="white")
+    masked_a = pcv.rgb2gray_lab(rgb_img=masked, channel="a")
+    masked_b = pcv.rgb2gray_lab(rgb_img=masked, channel="b")
+    kernel = np.ones((25, 25), np.uint8)
+    maskeda_thresh = pcv.threshold.binary(gray_img=masked_a, threshold=125,
+                                          object_type='dark')
+    maskeda_thresh = pcv.fill(bin_img=maskeda_thresh, size=100)
+    maskeda_thresh = cv2.morphologyEx(maskeda_thresh, cv2.MORPH_CLOSE, kernel)
+    maskedb_thresh = pcv.threshold.binary(gray_img=masked_b, threshold=140,
+                                          object_type="light")
+    maskedb_thresh = pcv.fill(bin_img=maskedb_thresh, size=100)
+    maskedb_thresh = cv2.morphologyEx(maskedb_thresh, cv2.MORPH_CLOSE, kernel)
+    xor_filter_mask = pcv.logical_xor(bin_img1=maskeda_thresh, bin_img2=maskedb_thresh)
+    or_filter_mask_1 = pcv.logical_or(bin_img1=maskeda_thresh, bin_img2=xor_filter_mask)
+    or_filter_mask_2 = pcv.logical_or(bin_img1=maskedb_thresh, bin_img2=xor_filter_mask)
+    inter_final_mask_1 = pcv.logical_and(bin_img1=or_filter_mask_1, bin_img2=maskedb_thresh)
+    inter_final_mask_2 = pcv.logical_and(bin_img1=or_filter_mask_2, bin_img2=maskeda_thresh)
+    final_mask = pcv.logical_or(bin_img1=inter_final_mask_1, bin_img2=inter_final_mask_2)
+    return final_mask
 
 
 def return_image(img, img_name, dest, img_aug=""):
@@ -123,7 +146,7 @@ def histogram_image(img, img_name, dest, mask):
     return return_image(fig, img_name, dest, "Histogram")
 
 
-def transformation(path, dest):
+def transformation(path, dest, hist=False):
     try:
         dest_folder = Path(dest)
         dest_folder.mkdir(parents=True, exist_ok=False)
@@ -142,7 +165,8 @@ def transformation(path, dest):
         images.append(roi_image(vis, img_name, dest, mask))
         images.append(analyze_object_image(vis, img_name, dest, mask))
         images.append(pseudolandmarks_image(vis, img_name, dest, mask))
-        images.append(histogram_image(vis, img_name, dest, mask))
+        if hist is True:
+            images.append(histogram_image(vis, img_name, dest, mask))
     except Exception as e:
         raise e
     return images
@@ -150,7 +174,7 @@ def transformation(path, dest):
 
 def show_transformation(path, dest):
     try:
-        images = transformation(path, dest)
+        images = transformation(path, dest, True)
         fig = plt.figure(constrained_layout=True)
         fig.suptitle(f"Transformation images of {path}")
         ax = fig.subplots(1, len(images))
@@ -204,17 +228,17 @@ def main():
                         type=str,
                         help="Path of the folder where to save the images")
     args = parser.parse_args()
-    try:
-        args = vars(args)
-        args["path"] = args["path"].rstrip("/")
-        args["dest"] = args["dest"].rstrip("/")
-        if os.path.isfile(args["path"]):
-            show_transformation(**args)
-        else:
-            balance_transformation(**args)
-    except Exception as e:
-        print(str(e))
-        parser.print_help()
+#    try:
+    args = vars(args)
+    args["path"] = args["path"].rstrip("/")
+    args["dest"] = args["dest"].rstrip("/")
+    if os.path.isfile(args["path"]):
+        show_transformation(**args)
+    else:
+        balance_transformation(**args)
+#    except Exception as e:
+#        print(str(e))
+#        parser.print_help()
 
 
 if __name__ == "__main__":
