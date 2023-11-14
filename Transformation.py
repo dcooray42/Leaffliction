@@ -26,26 +26,24 @@ image_labels = [
 
 
 def create_mask(img):
-    s = pcv.rgb2gray_hsv(rgb_img=img, channel="s")
-    s_thresh = pcv.threshold.binary(gray_img=s,
-                                    threshold=85,
-                                    object_type="light")
-    s_mblur = pcv.median_blur(gray_img=s_thresh, ksize=5)
-    b = pcv.rgb2gray_lab(rgb_img=img, channel="b")
-    b_thresh = pcv.threshold.binary(gray_img=b, threshold=118,
-                                    object_type="light")
-    bs = pcv.logical_or(bin_img1=s_mblur, bin_img2=b_thresh)
-    masked = pcv.apply_mask(img=img, mask=bs, mask_color="white")
-    masked_a = pcv.rgb2gray_lab(rgb_img=masked, channel="a")
-    masked_b = pcv.rgb2gray_lab(rgb_img=masked, channel="b")
+    masked_a = pcv.rgb2gray_lab(rgb_img=img, channel="a")
+    masked_b = pcv.rgb2gray_lab(rgb_img=img, channel="b")
     kernel = np.ones((25, 25), np.uint8)
     maskeda_thresh = pcv.threshold.binary(gray_img=masked_a, threshold=125,
                                           object_type='dark')
     maskeda_thresh = pcv.fill(bin_img=maskeda_thresh, size=100)
+    try:
+        maskeda_thresh = pcv.fill_holes(bin_img=maskeda_thresh)
+    except:
+        pass
     maskeda_thresh = cv2.morphologyEx(maskeda_thresh, cv2.MORPH_CLOSE, kernel)
     maskedb_thresh = pcv.threshold.binary(gray_img=masked_b, threshold=140,
                                           object_type="light")
     maskedb_thresh = pcv.fill(bin_img=maskedb_thresh, size=100)
+    try:
+        maskedb_thresh = pcv.fill_holes(bin_img=maskedb_thresh)
+    except:
+        pass
     maskedb_thresh = cv2.morphologyEx(maskedb_thresh, cv2.MORPH_CLOSE, kernel)
     xor_filter_mask = pcv.logical_xor(bin_img1=maskeda_thresh, bin_img2=maskedb_thresh)
     or_filter_mask_1 = pcv.logical_or(bin_img1=maskeda_thresh, bin_img2=xor_filter_mask)

@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import pickle
 import tensorflow as tf
 from tensorflow.keras import Sequential
-from tensorflow.keras.layers import Rescaling, MaxPooling2D, Conv2D, Flatten, Dense
+from tensorflow.keras.layers import Dropout, Rescaling, MaxPooling2D, Conv2D, Flatten, Dense
 from Transformation import balance_transformation
 
 
@@ -26,13 +26,15 @@ def create_cnn(num_classes):
     model.add(Rescaling(1.0 / 255))
     model.add(Conv2D(64, (3, 3), activation="relu"))
     model.add(MaxPooling2D(2, 2))
-    model.add(Conv2D(64, (3, 3), activation="relu"))
+    model.add(Conv2D(128, (3, 3), activation="relu"))
     model.add(MaxPooling2D(2, 2))
-    model.add(Conv2D(32, (1, 1), activation="relu"))
+    model.add(Conv2D(256, (3, 3), activation="relu"))
     model.add(MaxPooling2D(2, 2))
     model.add(Flatten())
     model.add(Dense(512, activation="relu"))
+    model.add(Dropout(0.5))
     model.add(Dense(256, activation="relu"))
+    model.add(Dropout(0.5))
     model.add(Dense(num_classes, activation="softmax"))
 
     model.compile(
