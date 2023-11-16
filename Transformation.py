@@ -182,9 +182,7 @@ def show_transformation(path, dest):
         fig = plt.figure(constrained_layout=True)
         fig.suptitle(f"Transformation images of {path}")
         ax = fig.subplots(1, len(images))
-        print(f"len image = {len(images)}")
         for index, image_path in enumerate(images):
-            print(f"image path = {image_path}")
             image = Image.open(image_path)
             ax[index].imshow(np.array(image.convert("RGB")))
             ax[index].title.set_text(image_labels[index])
