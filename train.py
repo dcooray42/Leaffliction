@@ -67,6 +67,8 @@ def evaluate(model_path, history_path, test_set):
     model = load_model(model_path)
     with open(history_path, "rb") as f:
         data = pickle.load(f)
+    test_loss, test_acc = model.evaluate(test_set, verbose=2)
+    print(f"Test Loss: {test_loss}\nTest Accuracy: {test_acc}")
     plt.plot(data["history"]["accuracy"], label="accuracy")
     plt.plot(data["history"]["val_accuracy"], label="val_accuracy")
     plt.xlabel("Epoch")
@@ -74,8 +76,6 @@ def evaluate(model_path, history_path, test_set):
     plt.ylim([0.5, 1])
     plt.legend(loc="lower right")
     plt.show()
-    test_loss, test_acc = model.evaluate(test_set, verbose=2)
-    print(f"Test Loss: {test_loss}\nTest Accuracy: {test_acc}")
 
 
 def main():
