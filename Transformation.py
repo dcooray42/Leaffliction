@@ -1,4 +1,5 @@
 from argparse import ArgumentParser
+import cv2
 from Data import FolderData
 from Distribution import count_files_folder
 import glob
@@ -27,20 +28,35 @@ image_labels = [
 def create_mask(img):
     masked_a = pcv.rgb2gray_lab(rgb_img=img, channel="a")
     masked_b = pcv.rgb2gray_lab(rgb_img=img, channel="b")
+    kernel = np.ones((25, 25), np.uint8)
     maskeda_thresh = pcv.threshold.binary(gray_img=masked_a, threshold=125,
                                           object_type='dark')
     maskeda_thresh = pcv.fill(bin_img=maskeda_thresh, size=100)
-    maskeda_thresh = pcv.fill_holes(bin_img=maskeda_thresh)
+    try:
+        maskeda_thresh = pcv.fill_holes(bin_img=maskeda_thresh)
+    except Exception:
+        pass
+    maskeda_thresh = cv2.morphologyEx(maskeda_thresh, cv2.MORPH_CLOSE, kernel)
     maskedb_thresh = pcv.threshold.binary(gray_img=masked_b, threshold=140,
                                           object_type="light")
     maskedb_thresh = pcv.fill(bin_img=maskedb_thresh, size=100)
-    maskedb_thresh = pcv.fill_holes(bin_img=maskedb_thresh)
-    xor_filter_mask = pcv.logical_xor(bin_img1=maskeda_thresh, bin_img2=maskedb_thresh)
-    or_filter_mask_1 = pcv.logical_or(bin_img1=maskeda_thresh, bin_img2=xor_filter_mask)
-    or_filter_mask_2 = pcv.logical_or(bin_img1=maskedb_thresh, bin_img2=xor_filter_mask)
-    inter_final_mask_1 = pcv.logical_and(bin_img1=or_filter_mask_1, bin_img2=maskedb_thresh)
-    inter_final_mask_2 = pcv.logical_and(bin_img1=or_filter_mask_2, bin_img2=maskeda_thresh)
-    final_mask = pcv.logical_or(bin_img1=inter_final_mask_1, bin_img2=inter_final_mask_2)
+    try:
+        maskedb_thresh = pcv.fill_holes(bin_img=maskedb_thresh)
+    except Exception:
+        pass
+    maskedb_thresh = cv2.morphologyEx(maskedb_thresh, cv2.MORPH_CLOSE, kernel)
+    xor_filter_mask = pcv.logical_xor(bin_img1=maskeda_thresh,
+                                      bin_img2=maskedb_thresh)
+    or_filter_mask_1 = pcv.logical_or(bin_img1=maskeda_thresh,
+                                      bin_img2=xor_filter_mask)
+    or_filter_mask_2 = pcv.logical_or(bin_img1=maskedb_thresh,
+                                      bin_img2=xor_filter_mask)
+    inter_final_mask_1 = pcv.logical_and(bin_img1=or_filter_mask_1,
+                                         bin_img2=maskedb_thresh)
+    inter_final_mask_2 = pcv.logical_and(bin_img1=or_filter_mask_2,
+                                         bin_img2=maskeda_thresh)
+    final_mask = pcv.logical_or(bin_img1=inter_final_mask_1,
+                                bin_img2=inter_final_mask_2)
     return final_mask
 
 
@@ -216,17 +232,17 @@ def main():
                         type=str,
                         help="Path of the folder where to save the images")
     args = parser.parse_args()
-#    try:
-    args = vars(args)
-    args["path"] = args["path"].rstrip("/")
-    args["dest"] = args["dest"].rstrip("/")
-    if os.path.isfile(args["path"]):
-        show_transformation(**args)
-    else:
-        balance_transformation(**args)
-#    except Exception as e:
-#        print(str(e))
-#        parser.print_help()
+    try:
+        args = vars(args)
+        args["path"] = args["path"].rstrip("/")
+        args["dest"] = args["dest"].rstrip("/")
+        if os.path.isfile(args["path"]):
+            show_transformation(**args)
+        else:
+            balance_transformation(**args)
+    except Exception as e:
+        print(str(e))
+        parser.print_help()
 
 
 if __name__ == "__main__":
