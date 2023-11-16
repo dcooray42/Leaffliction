@@ -114,8 +114,8 @@ def main():
                                    .union(set(dataset[1].class_names))))
             train(model, dataset)
         elif action == "evaluate":
-            args["test_set"] = dataset = read_dataset(args["dataset_path"],
-                                                      subset="validation")
+            args["test_set"] = read_dataset(args["dataset_path"],
+                                            subset="validation")
             args.pop("dataset_path")
             evaluate(**args)
     except Exception as e:
